@@ -1,0 +1,7 @@
+Version 1.0.0
+- Implemented initial Pipe class
+    - Pipe flowing to connected pipes
+    - Pipe rotation
+    - Pipe connections
+    - Pipe types
+- Added the basic graphical textures, currently unused
