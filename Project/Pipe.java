@@ -88,35 +88,41 @@ public class Pipe
      * Sets whether this pipe has water
      * @param water - Will the pipe have water
      */
-    public void setWater(boolean water) { this.hasWater = water; }
+    public void setWater(boolean water)
+        { this.hasWater = water; }
     /**
      * Gets whether this pipe has water
      * @return Water value
      */
-    public boolean getWater() { return this.hasWater; }
+    public boolean getWater()
+        { return this.hasWater; }
 
     /**
      * Sets whether this pipe will have water upon next flow
      * @param water - Will the pipe have water
      */
-    public void setWillHaveWater(boolean water) { this.willHaveWater = water; }
+    public void setWillHaveWater(boolean water)
+        { this.willHaveWater = water; }
     /**
      * Gets whether this pipe will have water upon next flow
      * @return Will have water value
      */
-    public boolean getWillHaveWater() { return this.willHaveWater; }
+    public boolean getWillHaveWater()
+        { return this.willHaveWater; }
 
     /**
      * Sets what type of pipe this pipe is
      * @param pipeType - New type of pipe, valid values: 
      *                   TWO, CORNER, THREE, FOUR, SINK, SOURCE
      */
-    public void setType(String pipeType) { this.type = Type.valueOf(pipeType.toUpperCase()); }
+    public void setType(String pipeType)
+        { this.type = Type.valueOf(pipeType.toUpperCase()); }
     /**
      * Gets waht type of pipe this pipe is
      * @return String value of pipe's type
      */
-    public String getType() { return String.valueOf(this.type); }
+    public String getType()
+        { return String.valueOf(this.type); }
 
     /**
      * Sets this pipe's connection in a given direction
@@ -146,8 +152,10 @@ public class Pipe
     }
     /**
      * Gets this pipe's connection in a given direction
+     * 
      * @param direction - What direction to get in, valid values:
      *                    UP, RIGHT, DOWN, LEFT
+     * 
      * @return Pipe connected in the given direction
      */
     public Pipe getConnect(String direction)
@@ -167,9 +175,11 @@ public class Pipe
         }
     }
     /**
-     * Gets whether the pipe is connected to another pipe in the given direction
+     * Gets whether the pipe has a connection in the given direction
+     * 
      * @param direction - What direction to check in, valid value:
      *                    UP, RIGHT, DOWN, LEFT
+     * 
      * @return Is there a pipe connected in the given direction
      */
     public boolean hasConnect(String direction)
@@ -191,6 +201,7 @@ public class Pipe
 
     /**
      * Counts how many pipes this pipe connects to
+     * 
      * @return Count of non-null connections
      */
     public int countConnections()
@@ -204,7 +215,9 @@ public class Pipe
     }
 
     /**
-     * Gets all of the non-null pipes this pipe connects to, ordered in: up, right, down, left
+     * Gets all of the non-null pipes this pipe connects to. This will be
+     * ordered by: UP, RIGHT, DOWN, LEFT
+     * 
      * @return Array of non-null pipes
      */
     public Pipe[] getAllConnections()
@@ -221,8 +234,7 @@ public class Pipe
     }
 
     /**
-     * Attempts to flow water from the given pipe into its
-     * connecting pipes
+     * Attempts to flow water from the given pipe into its connecting pipes
      * 
      * @param pipe - The pipe to flow from
      */
@@ -257,6 +269,7 @@ public class Pipe
      * 
      * @param width - Image width
      * @param height - Image height
+     * 
      * @return Pipe's Image
      */
     public Image getImage(int width, int height)
@@ -298,14 +311,17 @@ public class Pipe
             img = new ImageIcon("./PipeLight/pipe_" + number + ".png");
         }
 
-        img.setImage(img.getImage().getScaledInstance(width, height, Image.SCALE_FAST));
+        img.setImage(
+            img.getImage().getScaledInstance(width, height, Image.SCALE_FAST)
+        );
+
         return img.getImage();
     }
 
     /**
-     * Gets the transformation of this pipe, this is represented as
-     * a 32-bit integer where the bits represent booleans expressing
-     * whether it does or does not connect in that direction
+     * Gets the transformation of this pipe, this is represented as a 32-bit
+     * integer where the bits represent booleans expressing whether it can or
+     * can not connect in that direction
      * 
      * @return 32-bit integer containing translation
      */
@@ -358,8 +374,7 @@ public class Pipe
     }
 
     /**
-     * Returns the angle at which this pipe's icon should be
-     * oriented.
+     * Returns the angle at which this pipe's icon should be oriented
      * 
      * @return Angle, in radians
      */
