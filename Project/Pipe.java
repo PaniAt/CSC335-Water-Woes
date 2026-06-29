@@ -126,7 +126,7 @@ public class Pipe
 
     /**
      * Sets this pipe's connection in a given direction
-     * @param direction - What direction to set in, valid values:
+     * @param direction - What direction to set in, valid directions:
      *                    UP, RIGHT, DOWN, LEFT
      * @param pipe - Pipe to connect
      */
@@ -150,6 +150,19 @@ public class Pipe
                 throw new Error("Invalid pipe direction: " + direction);
         }
     }
+
+    /**
+     * Disconnects the pipe from any other pipe in the given direction, this
+     * effectively sets the connection in that direction to null
+     * 
+     * @param direction - What direction to disconnect in, valid directions:
+     *                    UP, RIGHT, DOWN, LEFT
+     */
+    public void disconnect(String direction)
+    {
+        this.setConnect(direction, null);
+    }
+
     /**
      * Gets this pipe's connection in a given direction
      * 
@@ -200,6 +213,26 @@ public class Pipe
     }
 
     /**
+     * Checks whether this pipe connects to another given pipe, checks for
+     * exact equality, so cloned pipes will return false
+     * 
+     * @param pipe - The pipe to check
+     * 
+     * @return Whether the given pipe is connected in any direction
+     */
+    public boolean connectsTo(Pipe pipe)
+    {
+        for (Pipe p: this.getAllConnections())
+        {
+            if (p == pipe) // Check for EXACT object equality
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Counts how many pipes this pipe connects to
      * 
      * @return Count of non-null connections
@@ -234,7 +267,9 @@ public class Pipe
     }
 
     /**
-     * Attempts to flow water from the given pipe into its connecting pipes
+     * Attempts to flow water from the given pipe into its connecting pipes,
+     * this is run in a static context. It is safe to pass null into this
+     * function
      * 
      * @param pipe - The pipe to flow from
      */
@@ -333,23 +368,23 @@ public class Pipe
         switch (this.type)
         {
             case TWO:
-                trans = 0b11111111_00000000_11111111_00000000;
+                trans = 0xFF00FF00;
                 break;
             case CORNER:
-                trans = 0b11111111_00000000_00000000_11111111;
+                trans = 0xFF0000FF;
                 break;
             case THREE:
-                trans = 0b11111111_11111111_00000000_11111111;
+                trans = 0xFFFF00FF;
                 break;
             case FOUR:
-                trans = 0b11111111_11111111_11111111_11111111;
+                trans = 0xFFFFFFFF;
                 return trans;
             case SOURCE:
             case SINK:
-                trans = 0b11111111_00000000_00000000_00000000;
+                trans = 0xFF000000;
                 break;
             default:
-                trans = 0b00000000_00000000_00000000_00000000;
+                trans = 0x00000000;
                 break;
         }
 

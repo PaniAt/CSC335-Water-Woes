@@ -3,7 +3,7 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 29/06/2026
+ * @version 30/06/2026
  */
 
 // Graphics and GUI
@@ -193,5 +193,118 @@ public class PipeNetwork extends JFrame{
         Pipe pipe = tileList[y][x];
         tileList[y][x] = null;
         return pipe;
+    }
+
+    /**
+     * Updates the flow model by 1 step. <br></br>Every pipe with water will
+     * fill every connecting pipe with water if that pipe is not already full
+     */
+    public void updateFlow()
+    {
+        // Calculate them changes...
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            // Nobody move.
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                // There's blood on the floor.
+                Pipe current = tileList[y][x];
+                Pipe.flow(current);
+            }
+        }
+
+        // Update water in pipes
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                Pipe current = tileList[y][x];
+                if (current != null)
+                {
+                    current.setWater( // Update water value
+                        current.getWater() | current.getWillHaveWater()
+                    );
+                    // Do not preserve this
+                    current.setWillHaveWater(false);
+                }
+            }
+        }
+    }
+
+    /**
+     * Automatically updates all of the connections between pipes, making sure
+     * that every connection is valid and reciprocal
+     */
+    public void updateConnections()
+    {
+        // Initial "approximation" for connections
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                Pipe current = tileList[y][x];
+                if (current == null)
+                {
+                    // pass
+                }
+                else
+                {
+                    int trans = current.getTrans();
+                    current.disconnect("UP");
+                    current.disconnect("RIGHT");
+                    current.disconnect("DOWN");
+                    current.disconnect("LEFT");
+                    // What the actual hell?
+                    if ((trans & 0xFF000000) != 0 && y - 1 >= 0)
+                    {
+                        current.setConnect("UP", tileList[y - 1][x]);
+                    }
+                    if ((trans & 0x00FF0000) != 0 && x + 1 < TILE_COLS)
+                    {
+                        current.setConnect("RIGHT", tileList[y][x + 1]);
+                    }
+                    if ((trans & 0x0000FF00) != 0 && y + 1 > TILE_ROWS)
+                    {
+                        current.setConnect("DOWN", tileList[y + 1][x]);
+                    }
+                    if ((trans & 0x000000FF) != 0 && x - 1 >= 0)
+                    {
+                        current.setConnect("LEFT", tileList[y][x - 1]);
+                    }
+                }
+            }
+        }
+
+        // Ensure every connection is reciprocal
+        final String[] DIRECTIONS = {"UP", "RIGHT", "DOWN", "LEFT"};
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                Pipe current = tileList[y][x];
+                if (current == null)
+                {
+                    // Nope! (your too late i already died)
+                }
+                else
+                {
+                    for (String dir: DIRECTIONS)
+                    {
+                        if (current.getConnect(dir) == null)
+                        {
+                            // Well don't do stupid null stuff idiot
+                        }
+                        else if (current.getConnect(dir).connectsTo(current))
+                        {
+                            // I should've never been given the "gift" of life
+                        }
+                        else
+                        {
+                            current.disconnect(dir);
+                        }
+                    }
+                }
+            }
+        }
     }
 }

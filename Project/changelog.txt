@@ -12,6 +12,16 @@ Version 1.1.0 (29/06/2026)
     - PipeNetworks can add/set pipes
     - PipeNetworks can remove pipes
     - Alias for quickly constructing pipes
-- The (currently unused) infrastructure for screen sizing, and other
-  various window utilities which will be utilised later in the project
+- The (currently unused) infrastructure for screen sizing, and other various
+  window utilities which will be utilised later in the project
 - Some stylisation of code documentation and layout
+
+Version 1.2.0 (30/06/2026)
+- Implemented PipeNetwork flowing
+    - PipeNetworks can flow water into pipes
+    - PipeNetworks can automatically update pipe connections
+    - PipeNetworks can simulate a full step in the flow model
+- Added Pipe::connectsTo() to check for connections
+- Added Pipe::disconnect() to disconnect pipes, instead of setting to null
+- Replaced binary notation with hex notation for Pipe connect transforms
+- Tiny bit more stylisation
