@@ -12,7 +12,7 @@
  * - Can be a water sink, end location for water
  * 
  * @author Atreya Pandit
- * @version 25/06/2026
+ * @version 01/07/2026
  */
 
 // Graphics
@@ -256,7 +256,7 @@ public class Pipe
     public Pipe[] getAllConnections()
     {
         Pipe[] out = new Pipe[this.countConnections()];
-        int i = 0;
+        int i = -1;
 
         if (this.upConnect != null) out[++i] = this.upConnect;
         if (this.rightConnect != null) out[++i] = this.rightConnect;
@@ -279,11 +279,11 @@ public class Pipe
         int connections = 0;
         if (pipe == null)
         {
-            canFlow = false;
+            return;
         }
         else if (pipe.getType().equals("SINK"))
         {
-            canFlow = false;
+            return;
         }
         else
         {

@@ -25,3 +25,12 @@ Version 1.2.0 (30/06/2026)
 - Added Pipe::disconnect() to disconnect pipes, instead of setting to null
 - Replaced binary notation with hex notation for Pipe connect transforms
 - Tiny bit more stylisation
+
+Version 1.3.0 (01/07/2026)
+- Implemented visualisations for PipeNetworks
+    - PipeNetworks can create a window using JFrame
+    - PipeNetworks visualise the grid and all pipes in the tilemap
+    - PipeNetworks position pipes correctly for display
+    - PipeNetworks rotate pipes correctly for display (evil matrix math)
+- Moved around a bit more code in Pipe::flow()
+- Added a static main() method for VScode to run the program

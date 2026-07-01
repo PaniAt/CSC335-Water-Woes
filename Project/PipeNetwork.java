@@ -3,14 +3,14 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 30/06/2026
+ * @version 01/07/2026
  */
 
 // Graphics and GUI
 import javax.swing.*;
 import java.awt.*;
 // import java.awt.event.*; Unused for now
-// import java.awt.geom.*; Unused for now
+import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 
 public class PipeNetwork extends JFrame{
@@ -92,13 +92,17 @@ public class PipeNetwork extends JFrame{
         addPipe(2, 3, pipe(false, "THREE", "RIGHT"));
         addPipe(3, 3, pipe(false, "CORNER", "UP"));
         addPipe(3, 2, pipe(false, "CORNER", "DOWN"));
-        addPipe(4, 2, pipe(false, "END", "LEFT"));
+        addPipe(4, 2, pipe(false, "SINK", "LEFT"));
         addPipe(2, 4, pipe(false, "TWO", "DOWN"));
         addPipe(2, 5, pipe(false, "SINK", "UP"));
 
-        // Initialise
-        // updateConnections();
-        // repaint();
+        // Make sure it works
+        updateConnections();
+        for (int i = 0; i < 3; ++i) updateFlow();
+        repaint();
+
+        // Don't instantly exit
+        while (true);
     }
 
     /**
@@ -106,16 +110,16 @@ public class PipeNetwork extends JFrame{
      * constructor with the given parameters
      * 
      * @param water - Whether the pipe has water
-     * @param pipeType - What type the pipe is, valid types:
+     * @param type - What type the pipe is, valid types:
      *                   TWO, CORNER, THREE, FOUR, SINK, SOURCE
-     * @param pipeDirection - What direction the pipe faces, valid directions:
+     * @param direction - What direction the pipe faces, valid directions:
      *                        UP, RIGHT, DOWN, LEFT
      * 
      * @return The new constructed pipe object
      */
-    public static Pipe pipe(boolean water, String pipeType, String pipeDirection)
+    public static Pipe pipe(boolean water, String type, String direction)
     {
-        return new Pipe(water, pipeType, pipeDirection);
+        return new Pipe(water, type, direction);
     }
 
     /**
@@ -263,7 +267,7 @@ public class PipeNetwork extends JFrame{
                     {
                         current.setConnect("RIGHT", tileList[y][x + 1]);
                     }
-                    if ((trans & 0x0000FF00) != 0 && y + 1 > TILE_ROWS)
+                    if ((trans & 0x0000FF00) != 0 && y + 1 < TILE_ROWS)
                     {
                         current.setConnect("DOWN", tileList[y + 1][x]);
                     }
@@ -306,5 +310,79 @@ public class PipeNetwork extends JFrame{
                 }
             }
         }
+    }
+
+    /**
+     * Visualises the state of the PipeNetwork
+     * 
+     * @param g - Pre-defined Graphics
+     */
+    public void paint(Graphics g)
+    {
+        // Initialise
+        if (firstPaint)
+        {
+            super.paint(g);
+            firstPaint = false;
+        }
+        if (offScreenImage == null)
+        {
+            offScreenImage = new BufferedImage(
+                getWidth(), getHeight(), BufferedImage.TYPE_INT_ARGB);
+        }
+
+        Graphics2D ctx = (Graphics2D) offScreenImage.getGraphics();
+        ctx.translate(OFFSETX, OFFSETY);
+        ctx.setColor(new Color(200, 200, 200));
+        ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+        // Tile list
+        Image img;
+        final int SPACER = (showGrid ? 1 : 0);
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                ctx.setColor(Color.BLACK);
+                ctx.fillRect(
+                    x * TILE_WIDTH, y * TILE_HEIGHT,
+                    TILE_WIDTH - SPACER, TILE_HEIGHT - SPACER);
+                
+                if (tileList[y][x] != null)
+                {
+                    img = tileList[y][x].getImage(TILE_WIDTH, TILE_HEIGHT);
+
+                    // Unholy matrix math go!
+                    double
+                        theta  = tileList[y][x].getAngle(),
+                        sin    = Math.sin(theta),
+                        cos    = Math.cos(theta),
+                        vsh    = 0.5 * (1.0 - cos), // Versine halfed
+                        sh     = 0.5 * sin;         // Sine halfed
+                    
+                    double[] m = new double[]{
+                        +cos, +sin,
+                        -sin, +cos,
+                        TILE_WIDTH * (x + vsh) + (TILE_HEIGHT * sh),
+                        TILE_HEIGHT * (y + vsh) - (TILE_WIDTH * sh),
+                    };
+
+                    AffineTransform trans = new AffineTransform(m);
+                    
+                    // Unholy matrix math complete, render
+                    ctx.drawImage(img, trans, null);
+                }
+            }
+        }
+
+        // Draw image from buffer
+        g.drawImage(offScreenImage, 0, 0, null);
+    }
+
+    public static void main(String[] args)
+    {
+        PipeNetwork program = new PipeNetwork();
+        program.dispose();
+        return;
     }
 }
