@@ -34,3 +34,13 @@ Version 1.3.0 (01/07/2026)
     - PipeNetworks rotate pipes correctly for display (evil matrix math)
 - Moved around a bit more code in Pipe::flow()
 - Added a static main() method for VScode to run the program
+
+Version 1.4.0 (03/07/2026)
+- Implemented a basic model editor for PipeNetworks
+    - PipeNetworks can get keyboard and mouse input from the user
+    - PipeNetworks can add pipes via the editor
+    - PipeNetworks can remove pipes via the editor
+    - PipeNetworks can drain pipes via the editor
+    - Added (currently unused) method for draining all pipes in a PipeNetwork
+    - PipeNetwork editor can rotate pipes, although it is not very usable
+- Added Pipe::getDirection() and Pipe::setDirection() for pipes

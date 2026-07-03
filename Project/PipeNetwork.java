@@ -3,17 +3,19 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 01/07/2026
+ * @version 03/07/2026
  */
 
 // Graphics and GUI
 import javax.swing.*;
+
 import java.awt.*;
-// import java.awt.event.*; Unused for now
+import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 
-public class PipeNetwork extends JFrame{
+public class PipeNetwork extends JFrame implements ActionListener, MouseListener
+{
     // Window offsets
     final int OFFSETX =
         // Windows: 08 | MacOS: 00
@@ -80,7 +82,7 @@ public class PipeNetwork extends JFrame{
         this.getContentPane().setLayout(null);
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         // createMenuBars(); // Make menu bars
-        // addMouseListener(this); // For mouse events
+        addMouseListener(this); // For mouse events
 
         this.pack();
         this.toFront();
@@ -236,6 +238,58 @@ public class PipeNetwork extends JFrame{
     }
 
     /**
+     * Drains the pipe at the specified coordinates, provieded that the pipe is
+     * not a source or null
+     * 
+     * @param x - The x coordinate
+     * @param y - The y coordinate
+     */
+    public void drainPipe(int x, int y)
+    {
+        if (x < 0 || x >= TILE_COLS || y < 0 || y >= TILE_ROWS)
+        {
+            // null, do nothing
+        }
+        else if (tileList[y][x] == null)
+        {
+            // also null, do nothing
+        }
+        else if (tileList[y][x].getType().equals("SOURCE"))
+        {
+            // can't unfill sources
+        }
+        else
+        {
+            tileList[y][x].setWater(false);
+        }
+    }
+
+    /**
+     * Drains the entire pipe network, except for sources
+     */
+    public void drainAll()
+    {
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                if (tileList[y][x] == null)
+                {
+                    // Nothing
+                }
+                else if (tileList[y][x].getType().equals("SOURCE"))
+                {
+                    // Can't unfill sources
+                }
+                else
+                {
+                    tileList[y][x].setWater(false);
+                }
+            }
+        }
+    }
+
+    /**
      * Automatically updates all of the connections between pipes, making sure
      * that every connection is valid and reciprocal
      */
@@ -377,6 +431,119 @@ public class PipeNetwork extends JFrame{
 
         // Draw image from buffer
         g.drawImage(offScreenImage, 0, 0, null);
+    }
+
+    /**
+     * Invoked when the mouse button has been clicked, pressed and released, on
+     * a component
+     * 
+     * @param evt - The event to be processed
+     */
+    public void mouseClicked(MouseEvent evt) {}
+
+    /**
+     * Invoked when a mouse button has been pressed on a component
+     * 
+     * @param evt - The event to be processed
+     */
+    public void mousePressed(MouseEvent evt)
+    {
+        if (evt.getButton() == MouseEvent.BUTTON1)
+        {
+            mouseDown = true;
+        }
+    }
+
+    /**
+     * Invoked when a mouse button has been released on a component
+     * 
+     * @param evt - The event to be processed
+     */
+    public void mouseReleased(MouseEvent evt)
+    {
+        int x = evt.getX() - OFFSETX,
+            y = evt.getY() - OFFSETY;
+        if (evt.getButton() == MouseEvent.BUTTON1 && mouseDown)
+        {
+            mouseDown = false;
+            
+            if (pipeSelector)
+            {
+                x -= SCREEN_WIDTH / 2 + (SCREEN_WIDTH / 4) / GUI[0].length;
+                y -= SCREEN_HEIGHT / 2;
+                x /= (SCREEN_WIDTH / 4) / GUI[0].length;
+                y /= (SCREEN_WIDTH / 4) / GUI[0].length * (SCREEN_WIDTH / SCREEN_HEIGHT);
+                if (x >= 0 && x < GUI[0].length && y >= 0 && y < GUI.length)
+                {
+                    editType = GUI[y][x].getType();
+                }
+            }
+            else
+            {
+                x /= TILE_WIDTH;
+                y /= TILE_HEIGHT;
+                addPipe(x, y, false, editType, editDirection); // This may be wrong when placing sources
+                updateConnections();
+            }
+            repaint();
+        }
+        else if (evt.getButton() == MouseEvent.BUTTON3)
+        {
+            x /= TILE_WIDTH;
+            y /= TILE_HEIGHT;
+
+            // This is some evil horrible code. Not to mention how badly coded
+            // it is, it also is bad UI design. Anyways, it suffices for now.
+            if (evt.isAltDown())
+            {
+                drainPipe(x, y);
+            }
+            else if (evt.isShiftDown())
+            {
+                tileList[y][x].setDirection(editDirection);
+                editDirection = 
+                    new String[]{"RIGHT", "DOWN", "LEFT", "UP"}
+                    ["URDL".indexOf(editDirection.charAt(0))];
+            }
+            else
+            {
+                removePipe(x, y);
+            }
+            updateConnections();
+            repaint();
+        }
+    }
+
+    /**
+     * Invoked when the mouse enters a component
+     * 
+     * @param evt - The event to be processed
+     */
+    public void mouseEntered(MouseEvent evt) {}
+
+    /**
+     * Invoked when the mouse exits a component
+     * 
+     * @param evt - The event to be processed
+     */
+    public void mouseExited(MouseEvent evt)  {}
+
+    /**
+     * Invoked when an action occurs
+     * 
+     * @param evt - The event to be processed
+     */
+    public void actionPerformed(ActionEvent evt)
+    {
+        String cmd = evt.getActionCommand();
+        switch (cmd)
+        {
+            default:
+                System.out.printf(
+                    "Invalid action detected. Recieved: \"%s\"",
+                    cmd
+                );
+        }
     }
 
     public static void main(String[] args)

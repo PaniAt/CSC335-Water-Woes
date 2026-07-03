@@ -12,7 +12,7 @@
  * - Can be a water sink, end location for water
  * 
  * @author Atreya Pandit
- * @version 01/07/2026
+ * @version 03/07/2026
  */
 
 // Graphics
@@ -111,6 +111,21 @@ public class Pipe
         { return this.willHaveWater; }
 
     /**
+     * Sets the direction this pipe faces in
+     * @param pipeDirection - New direction of pipe, valid directions:
+     *                        UP, RIGHT, DOWN, LEFT
+     */
+    public void setDirection(String pipeDirection)
+        { this.dir = Direction.valueOf(pipeDirection.toUpperCase()); }
+    
+    /**
+     * Gets what direction this pipe faces in
+     * @return String value of pipe's direction
+     */
+    public String getDirection()
+        { return String.valueOf(this.dir); }
+
+    /**
      * Sets what type of pipe this pipe is
      * @param pipeType - New type of pipe, valid values: 
      *                   TWO, CORNER, THREE, FOUR, SINK, SOURCE
@@ -118,7 +133,7 @@ public class Pipe
     public void setType(String pipeType)
         { this.type = Type.valueOf(pipeType.toUpperCase()); }
     /**
-     * Gets waht type of pipe this pipe is
+     * Gets what type of pipe this pipe is
      * @return String value of pipe's type
      */
     public String getType()
