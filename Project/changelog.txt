@@ -44,3 +44,12 @@ Version 1.4.0 (03/07/2026)
     - Added (currently unused) method for draining all pipes in a PipeNetwork
     - PipeNetwork editor can rotate pipes, although it is not very usable
 - Added Pipe::getDirection() and Pipe::setDirection() for pipes
+
+Version 1.5.0 (09/06/2026)
+- Implemented a basic GUI and HUD for PipeNetworks
+    - PipeNetworks display a MenuBar
+    - PipeNetworks have MenuBar accelerators
+    - PipeNetworks have a toggleable pipe selection overlay
+    - Selection overlay has some general information about the program
+- Added new method to count all non-null pipes in a PipeNetwork
+- Moved parts of the screen rendering into separate functions

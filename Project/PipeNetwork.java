@@ -3,7 +3,7 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 03/07/2026
+ * @version 09/07/2026
  */
 
 // Graphics and GUI
@@ -60,7 +60,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
     // Model edit variables
     String editType = "TWO";
-    String editDirection = "UP";
+    final String[] EDIT_DIRECTIONS = {"UP", "RIGHT", "DOWN", "LEFT"};
+    int editDirection = 0; // Index of EDIT_DIRECTIONS
     boolean pipeSelector = false;
     final Pipe[][] GUI = {
         {new Pipe(false, "TWO", "UP"), new Pipe(false, "CORNER", "UP")},
@@ -81,7 +82,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             .setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
         this.getContentPane().setLayout(null);
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
-        // createMenuBars(); // Make menu bars
+        createMenuBars(); // Make menu bars
         addMouseListener(this); // For mouse events
 
         this.pack();
@@ -100,7 +101,6 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
         // Make sure it works
         updateConnections();
-        for (int i = 0; i < 3; ++i) updateFlow();
         repaint();
 
         // Don't instantly exit
@@ -199,6 +199,28 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         Pipe pipe = tileList[y][x];
         tileList[y][x] = null;
         return pipe;
+    }
+
+    /**
+     * Returns the amount of pipes in the pipe network, namely the number of
+     * non-null tiles in the tile map
+     * 
+     * @return Pipe count
+     */
+    public int countPipes()
+    {
+        int count = 0;
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                if (tileList[y][x] != null)
+                {
+                    ++count;
+                }
+            }
+        }
+        return count;
     }
 
     /**
@@ -390,7 +412,25 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         ctx.setColor(new Color(200, 200, 200));
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-        // Tile list
+        paintTiles(ctx);
+
+        // Pipe selector menu
+        if (pipeSelector)
+        {
+            paintSelector(ctx);
+        }
+
+        // Draw image from buffer
+        g.drawImage(offScreenImage, 0, 0, null);
+    }
+
+    /**
+     * Draws out the tileList
+     * 
+     * @param ctx - Supplied Graphics2D from the paint() function
+     */
+    public void paintTiles(Graphics2D ctx)
+    {
         Image img;
         final int SPACER = (showGrid ? 1 : 0);
         for (int y = 0; y < TILE_ROWS; ++y)
@@ -400,7 +440,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
                 ctx.setColor(Color.BLACK);
                 ctx.fillRect(
                     x * TILE_WIDTH, y * TILE_HEIGHT,
-                    TILE_WIDTH - SPACER, TILE_HEIGHT - SPACER);
+                    TILE_WIDTH - SPACER, TILE_HEIGHT - SPACER
+                );
                 
                 if (tileList[y][x] != null)
                 {
@@ -428,9 +469,87 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
                 }
             }
         }
+    }
 
-        // Draw image from buffer
-        g.drawImage(offScreenImage, 0, 0, null);
+    /**
+     * Draws out the selector menu
+     * 
+     * @param ctx - Supplied Graphics2D from the paint() function
+     */
+    public void paintSelector(Graphics2D ctx)
+    {
+        final int HALF_WIDTH = SCREEN_WIDTH / 2;
+        final int HALF_HEIGHT = SCREEN_HEIGHT / 2;
+        final int GUI_ROWS = GUI.length;
+        final int GUI_COLS = GUI[0].length;
+        
+        Image img;
+        ctx.setColor(new Color(200, 200, 200));
+        ctx.fillRect(HALF_WIDTH, 0, HALF_WIDTH, SCREEN_HEIGHT);
+
+        final int GUI_TILE_WIDTH = (HALF_WIDTH / 2) / GUI_COLS;
+        final int GUI_TILE_HEIGHT =
+            GUI_TILE_WIDTH * (SCREEN_WIDTH / SCREEN_HEIGHT);
+        ctx.translate(HALF_WIDTH + GUI_TILE_WIDTH, HALF_HEIGHT);
+
+        // Information menu
+        ctx.setColor(Color.BLACK);
+        String[] lines = {
+            "-- Statistics --",
+            "Model Dimensions: " + TILE_COLS + "x" + TILE_ROWS,
+            "Total Squares: " + TILE_ROWS * TILE_COLS,
+            "Total Pipes: " + countPipes(),
+            "",
+            "-- How to use --",
+            "Left Click to place pipes",
+            "Right Click to delete pipes",
+            "Alt + Right Click to drain pipes",
+            "X to rotate placement right",
+            "Z to rotate placement left",
+            "S to open pipe selector",
+            "F to step model by 1 frame",
+            "G to toggle the model grid",
+        };
+        for (int i = 0; i < lines.length; ++i)
+        {
+            ctx.drawString(
+                lines[i], 0, (HALF_HEIGHT * -15 / 16) + (i * 16)
+            );
+        }
+
+
+        // Unholy matrix math go!
+        final double
+            theta = Math.PI / 2.0 * editDirection,
+            sin = Math.sin(theta),
+            cos = Math.cos(theta),
+            vsh = 0.5 * (1.0 - cos),
+            sh = 0.5 * sin;
+        
+        for (int y = 0; y < GUI_ROWS; ++y)
+        {
+            for (int x = 0; x < GUI_COLS; ++x)
+            {
+                ctx.setColor(new Color(165, 165, 165));
+                ctx.fillRect(
+                    x * GUI_TILE_WIDTH, y * GUI_TILE_HEIGHT,
+                    GUI_TILE_WIDTH - 1, GUI_TILE_HEIGHT - 1
+                );
+                img = GUI[y][x].getImage(GUI_TILE_WIDTH, GUI_TILE_HEIGHT);
+
+                double[] m = new double[]{
+                    +cos, +sin,
+                    -sin, +cos,
+                    GUI_TILE_WIDTH * (x + vsh) + (GUI_TILE_HEIGHT * sh),
+                    GUI_TILE_HEIGHT * (y + vsh) - (GUI_TILE_WIDTH * sh),
+                };
+                AffineTransform trans = new AffineTransform(m);
+
+                ctx.drawImage(img, trans, null);
+            }
+        }
+
+        ctx.translate(-HALF_WIDTH, -HALF_HEIGHT);
     }
 
     /**
@@ -482,7 +601,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             {
                 x /= TILE_WIDTH;
                 y /= TILE_HEIGHT;
-                addPipe(x, y, false, editType, editDirection); // This may be wrong when placing sources
+                // This may be wrong when placing sources
+                addPipe(x, y, false, editType, EDIT_DIRECTIONS[editDirection]);
                 updateConnections();
             }
             repaint();
@@ -497,13 +617,6 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             if (evt.isAltDown())
             {
                 drainPipe(x, y);
-            }
-            else if (evt.isShiftDown())
-            {
-                tileList[y][x].setDirection(editDirection);
-                editDirection = 
-                    new String[]{"RIGHT", "DOWN", "LEFT", "UP"}
-                    ["URDL".indexOf(editDirection.charAt(0))];
             }
             else
             {
@@ -538,12 +651,106 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         String cmd = evt.getActionCommand();
         switch (cmd)
         {
+            case "Quit":
+                System.exit(0);
+                break;
+            case "Reset":
+                tileList = new Pipe[TILE_ROWS][TILE_COLS];
+                break;
+            case "Step 1 Frame":
+                updateFlow();
+                repaint();
+                break;
+            case "Drain":
+                drainAll();
+                repaint();
+                break;
+            case "Toggle Grid":
+                showGrid = !showGrid;
+                repaint();
+                break;
+            case "Pipe Selector":
+                pipeSelector = !pipeSelector;
+                repaint();
+                break;
+            case "Rotate Right":
+                editDirection = ++editDirection % 4;
+                repaint();
+                break;
+            case "Rotate Left":
+                --editDirection;
+                if (editDirection < 0)
+                {
+                    editDirection = 3;
+                }
+                repaint();
+                break;
             default:
                 System.out.printf(
                     "Invalid action detected. Recieved: \"%s\"",
                     cmd
                 );
         }
+    }
+
+    public void createMenuBars()
+    {
+        // Define the menu bar
+        menuBar = new JMenuBar();
+        this.setJMenuBar(menuBar);
+
+        // The Model menu
+        menu = new JMenu("Model");
+        menuBar.add(menu);
+        menu.getPopupMenu().setLightWeightPopupEnabled(false); // Fix rendering
+
+        // Model : Quit
+        menuItem = new JMenuItem("Quit");
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Model : Step 1 Frame
+        menuItem = new JMenuItem("Step 1 Frame");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('f'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Edit : Drain
+        menuItem = new JMenuItem("Drain");
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+
+        // The Interface menu
+        menu = new JMenu("Interface");
+        menuBar.add(menu);
+        menu.getPopupMenu().setLightWeightPopupEnabled(false);
+        // Interface : Toggle Grid
+        menuItem = new JMenuItem("Toggle Grid");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('g'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+
+        // The Edit menu
+        menu = new JMenu("Edit");
+        menuBar.add(menu);
+        menu.getPopupMenu().setLightWeightPopupEnabled(false);
+        // Edit : Reset
+        menuItem = new JMenuItem("Reset");
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Edit : Pipe Selector
+        menuItem = new JMenuItem("Pipe Selector");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('s'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Edit : Rotate Right
+        menuItem = new JMenuItem("Rotate Right");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('x'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Edit : Rotate Left
+        menuItem = new JMenuItem("Rotate Left");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('z'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
     }
 
     public static void main(String[] args)
