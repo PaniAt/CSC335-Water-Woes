@@ -77,6 +77,10 @@ public class Pipe
     {
         this.hasWater = water;
         this.type = Type.valueOf(pipeType.toUpperCase());
+        if (this.type == Type.SOURCE)
+        {
+            hasWater = true;
+        }
         this.dir = Direction.valueOf(pipeDirection.toUpperCase());
     }
 

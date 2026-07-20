@@ -3,7 +3,7 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 09/07/2026
+ * @version 20/07/2026
  */
 
 // Graphics and GUI
@@ -90,7 +90,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         this.setVisible(true);
 
         // Sample pipe layout
-        addPipe(2, 1, pipe(true, "SOURCE", "DOWN"));
+        addPipe(2, 1, pipe(false, "SOURCE", "DOWN"));
         addPipe(2, 2, pipe(false, "TWO", "DOWN"));
         addPipe(2, 3, pipe(false, "THREE", "RIGHT"));
         addPipe(3, 3, pipe(false, "CORNER", "UP"));
@@ -601,8 +601,14 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             {
                 x /= TILE_WIDTH;
                 y /= TILE_HEIGHT;
-                // This may be wrong when placing sources
-                addPipe(x, y, false, editType, EDIT_DIRECTIONS[editDirection]);
+                if (editType.equals("SOURCE"))
+                {
+                    addPipe(x, y, true, editType, EDIT_DIRECTIONS[editDirection]);
+                }
+                else
+                {
+                    addPipe(x, y, false, editType, EDIT_DIRECTIONS[editDirection]);
+                }
                 updateConnections();
             }
             repaint();
@@ -656,6 +662,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
                 break;
             case "Reset":
                 tileList = new Pipe[TILE_ROWS][TILE_COLS];
+                repaint();
                 break;
             case "Step 1 Frame":
                 updateFlow();

@@ -45,7 +45,7 @@ Version 1.4.0 (03/07/2026)
     - PipeNetwork editor can rotate pipes, although it is not very usable
 - Added Pipe::getDirection() and Pipe::setDirection() for pipes
 
-Version 1.5.0 (09/06/2026)
+Version 1.5.0 (09/07/2026)
 - Implemented a basic GUI and HUD for PipeNetworks
     - PipeNetworks display a MenuBar
     - PipeNetworks have MenuBar accelerators
@@ -53,3 +53,11 @@ Version 1.5.0 (09/06/2026)
     - Selection overlay has some general information about the program
 - Added new method to count all non-null pipes in a PipeNetwork
 - Moved parts of the screen rendering into separate functions
+
+Version 1.5.1 (20/07/2026)
+- Bug fixes
+    - Fixed PipeNetwork not automatically repainting upon reset
+    - Fixed source pipes not placing correctly
+    - Fixed source pipes being able to be unfilled
+- Changed "(09/06/2026)" to "(09/07/2026)" in Version 1.5.0, because I
+  am not capable of time travel... Yet...
