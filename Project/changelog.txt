@@ -61,3 +61,13 @@ Version 1.5.1 (20/07/2026)
     - Fixed source pipes being able to be unfilled
 - Changed "(09/06/2026)" to "(09/07/2026)" in Version 1.5.0, because I
   am not capable of time travel... Yet...
+
+Version 2.0.0 (dd/07/2026)
+- Implemented trialling feedback
+    - Made the pipe selector always visible
+    - Rewrote the information doohickey
+    - Added a pipe placement overlay
+    - Added automatic water flowing (autoflow)
+    - Created a keybind to drain all water (d)
+    - Added colour scheme customisation
+    - Added the ability to drag and edit pipes

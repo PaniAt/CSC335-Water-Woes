@@ -3,7 +3,7 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 20/07/2026
+ * @version 22/07/2026
  */
 
 // Graphics and GUI
@@ -14,8 +14,11 @@ import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 
-public class PipeNetwork extends JFrame implements ActionListener, MouseListener
+public class PipeNetwork extends JFrame implements ActionListener, MouseListener, MouseMotionListener
 {
+    // FPS
+    final int FPS_MS = 1000 / 8; // ~24 FPS => 42 ms delay / frame
+
     // Window offsets
     final int OFFSETX =
         // Windows: 08 | MacOS: 00
@@ -39,6 +42,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     
     // Dividing then multiplying rouunds to a factor of the tile array length
     final int SCREEN_WIDTH = (squareSize / TILE_COLS) * TILE_COLS;
+    final int FULL_SCREEN_WIDTH = SCREEN_WIDTH + SCREEN_WIDTH / 2;
     final int SCREEN_HEIGHT = (squareSize / TILE_ROWS) * TILE_ROWS;
     // Tile list
     final int TILE_WIDTH = SCREEN_WIDTH / TILE_COLS;
@@ -51,6 +55,10 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     BufferedImage offScreenImage;
     boolean firstPaint = true;
     boolean mouseDown = false;
+    Color gridColour = Color.BLACK; // Colour of grid tiles
+    Color guiColour = new Color(165, 165, 165); // Colour of gui grid
+    Color backColour = new Color(200, 200, 200); // Colour of backgrounds
+    
 
     // MenuBar variables
     JMenuBar menuBar;
@@ -62,12 +70,13 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     String editType = "TWO";
     final String[] EDIT_DIRECTIONS = {"UP", "RIGHT", "DOWN", "LEFT"};
     int editDirection = 0; // Index of EDIT_DIRECTIONS
-    boolean pipeSelector = false;
     final Pipe[][] GUI = {
         {new Pipe(false, "TWO", "UP"), new Pipe(false, "CORNER", "UP")},
         {new Pipe(false, "THREE", "UP"), new Pipe(false, "FOUR", "UP")},
         {new Pipe(false, "SINK", "UP"), new Pipe(true, "SOURCE", "UP")},
     };
+    boolean autoflow = false;
+    Point2D[] changedTiles;
 
     // Timing
     int gameTimer = 0;
@@ -79,11 +88,13 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     {
         this.setTitle("Pipe Network");
         this.getContentPane()
-            .setPreferredSize(new Dimension(SCREEN_WIDTH, SCREEN_HEIGHT));
+            .setPreferredSize(new Dimension(FULL_SCREEN_WIDTH, SCREEN_HEIGHT));
         this.getContentPane().setLayout(null);
+        this.setResizable(false);
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         createMenuBars(); // Make menu bars
         addMouseListener(this); // For mouse events
+        addMouseMotionListener(this);
 
         this.pack();
         this.toFront();
@@ -101,10 +112,32 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
         // Make sure it works
         updateConnections();
-        repaint();
+        // repaint();
 
-        // Don't instantly exit
-        while (true);
+        // Simulation loop
+        int ticks = 0; // Breaks after about 2.4 weeks
+        while (true)
+        {
+            repaint();
+            ++ticks;
+            if (ticks < 5) // Prevent menuBars not showing correctly sometimes
+            {
+                firstPaint = true;
+            }
+            if (autoflow && ticks * FPS_MS % 1000 == 0)
+            {
+                updateConnections();
+                updateFlow();
+            }
+            try
+            {
+                Thread.sleep(FPS_MS);
+            }
+            catch (InterruptedException e)
+            {
+                // Thread interrupted
+            }
+        }
     }
 
     /**
@@ -409,16 +442,14 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
         Graphics2D ctx = (Graphics2D) offScreenImage.getGraphics();
         ctx.translate(OFFSETX, OFFSETY);
-        ctx.setColor(new Color(200, 200, 200));
+        ctx.setColor(backColour);
         ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
         paintTiles(ctx);
 
         // Pipe selector menu
-        if (pipeSelector)
-        {
-            paintSelector(ctx);
-        }
+        paintSelector(ctx);
+        paintOverlay(ctx);
 
         // Draw image from buffer
         g.drawImage(offScreenImage, 0, 0, null);
@@ -437,7 +468,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         {
             for (int x = 0; x < TILE_COLS; ++x)
             {
-                ctx.setColor(Color.BLACK);
+                ctx.setColor(gridColour);
                 ctx.fillRect(
                     x * TILE_WIDTH, y * TILE_HEIGHT,
                     TILE_WIDTH - SPACER, TILE_HEIGHT - SPACER
@@ -484,13 +515,13 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         final int GUI_COLS = GUI[0].length;
         
         Image img;
-        ctx.setColor(new Color(200, 200, 200));
-        ctx.fillRect(HALF_WIDTH, 0, HALF_WIDTH, SCREEN_HEIGHT);
+        ctx.setColor(backColour);
+        ctx.fillRect(SCREEN_WIDTH, 0, HALF_WIDTH, SCREEN_HEIGHT);
 
         final int GUI_TILE_WIDTH = (HALF_WIDTH / 2) / GUI_COLS;
         final int GUI_TILE_HEIGHT =
             GUI_TILE_WIDTH * (SCREEN_WIDTH / SCREEN_HEIGHT);
-        ctx.translate(HALF_WIDTH + GUI_TILE_WIDTH, HALF_HEIGHT);
+        ctx.translate(SCREEN_WIDTH + GUI_TILE_WIDTH, HALF_HEIGHT);
 
         // Information menu
         ctx.setColor(Color.BLACK);
@@ -504,11 +535,12 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             "Left Click to place pipes",
             "Right Click to delete pipes",
             "Alt + Right Click to drain pipes",
-            "X to rotate placement right",
-            "Z to rotate placement left",
-            "S to open pipe selector",
+            "X to rotate placement clockwise",
+            "Z to rotate placement anticlockwise",
             "F to step model by 1 frame",
             "G to toggle the model grid",
+            "",
+            "-- Click icons to select pipes --",
         };
         for (int i = 0; i < lines.length; ++i)
         {
@@ -530,7 +562,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         {
             for (int x = 0; x < GUI_COLS; ++x)
             {
-                ctx.setColor(new Color(165, 165, 165));
+                ctx.setColor(guiColour);
                 ctx.fillRect(
                     x * GUI_TILE_WIDTH, y * GUI_TILE_HEIGHT,
                     GUI_TILE_WIDTH - 1, GUI_TILE_HEIGHT - 1
@@ -549,7 +581,59 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             }
         }
 
-        ctx.translate(-HALF_WIDTH, -HALF_HEIGHT);
+        ctx.translate(-SCREEN_WIDTH - GUI_TILE_WIDTH, -HALF_HEIGHT);
+    }
+
+    /**
+     * Draws out the tile overlay
+     * 
+     * @param ctx - Supplied Graphics2D from the paint() function
+     */
+    public void paintOverlay(Graphics2D ctx)
+    {
+        Point mousePos = getMousePosition();
+        if (mousePos == null)
+        {
+            return;
+        }
+        int mouseX = (int) mousePos.getX() - OFFSETX;
+        mouseX /= TILE_WIDTH;
+        int mouseY = (int) mousePos.getY() - OFFSETY;
+        mouseY /= TILE_HEIGHT;
+
+        if (mouseX < 0 || mouseX >= TILE_COLS ||
+            mouseY < 0 || mouseY >= TILE_ROWS)
+        {
+            return;
+        }
+
+        final Pipe PIPE = pipe(editType.equals("SOURCE"),
+                               editType, EDIT_DIRECTIONS[editDirection]);
+        Image img = PIPE.getImage(TILE_WIDTH, TILE_HEIGHT);
+
+        // Unholy matrix math go!
+        double
+            theta = PIPE.getAngle(),
+            sin = Math.sin(theta),
+            cos = Math.cos(theta),
+            vsh = 0.5 * (1.0 - cos),
+            sh = 0.5 * sin;
+
+        double[] m = new double[]{
+            +cos, +sin,
+            -sin, +cos,
+            TILE_WIDTH * (mouseX + vsh) + (TILE_HEIGHT * sh),
+            TILE_HEIGHT * (mouseY + vsh) - (TILE_WIDTH * sh),
+        };
+
+        AffineTransform trans = new AffineTransform(m);
+
+        ctx.drawImage(img, trans, null);
+
+        ctx.setColor(new Color(255, 255, 255, 50));
+        final int SPACER = (showGrid ? 1 : 0);
+        ctx.fillRect(mouseX * TILE_WIDTH, mouseY * TILE_HEIGHT,
+                     TILE_WIDTH - SPACER, TILE_HEIGHT - SPACER);
     }
 
     /**
@@ -567,10 +651,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
      */
     public void mousePressed(MouseEvent evt)
     {
-        if (evt.getButton() == MouseEvent.BUTTON1)
-        {
-            mouseDown = true;
-        }
+        changedTiles = new Point2D[]{};
+        mouseDown = true;
     }
 
     /**
@@ -582,42 +664,43 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     {
         int x = evt.getX() - OFFSETX,
             y = evt.getY() - OFFSETY;
+        final int TRUE_X = x;
+        final int TRUE_Y = y;
         if (evt.getButton() == MouseEvent.BUTTON1 && mouseDown)
         {
             mouseDown = false;
             
-            if (pipeSelector)
+            if (x > SCREEN_WIDTH) // On tile selector
             {
-                x -= SCREEN_WIDTH / 2 + (SCREEN_WIDTH / 4) / GUI[0].length;
+                x -= SCREEN_WIDTH + (SCREEN_WIDTH / 4) / GUI[0].length;
                 y -= SCREEN_HEIGHT / 2;
                 x /= (SCREEN_WIDTH / 4) / GUI[0].length;
-                y /= (SCREEN_WIDTH / 4) / GUI[0].length * (SCREEN_WIDTH / SCREEN_HEIGHT);
-                if (x >= 0 && x < GUI[0].length && y >= 0 && y < GUI.length)
+                y /= (SCREEN_WIDTH / 4) / GUI[0].length *
+                     (SCREEN_WIDTH / SCREEN_HEIGHT);
+                int tileX = TRUE_X / TILE_WIDTH;
+                int tileY = TRUE_Y / TILE_HEIGHT;
+                if (x >= 0 && x < GUI[0].length && y >= 0 && y < GUI.length &&
+                    tileX > 17 && tileX < 22 && tileY > 7 && tileY < 14)
                 {
                     editType = GUI[y][x].getType();
                 }
             }
-            else
+            else // On regular grid
             {
                 x /= TILE_WIDTH;
                 y /= TILE_HEIGHT;
-                if (editType.equals("SOURCE"))
-                {
-                    addPipe(x, y, true, editType, EDIT_DIRECTIONS[editDirection]);
-                }
-                else
-                {
-                    addPipe(x, y, false, editType, EDIT_DIRECTIONS[editDirection]);
-                }
+                addPipe(x, y, editType.equals("SOURCE"),
+                        editType, EDIT_DIRECTIONS[editDirection]);
                 updateConnections();
             }
             repaint();
         }
-        else if (evt.getButton() == MouseEvent.BUTTON3)
+        else if (evt.getButton() == MouseEvent.BUTTON3 && mouseDown)
         {
+            mouseDown = false;
+
             x /= TILE_WIDTH;
             y /= TILE_HEIGHT;
-
             // This is some evil horrible code. Not to mention how badly coded
             // it is, it also is bad UI design. Anyways, it suffices for now.
             if (evt.isAltDown())
@@ -632,6 +715,66 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             repaint();
         }
     }
+
+    /**
+     * Invoked when a mouse button is pressed on a component and then
+     * dragged.  {@code MOUSE_DRAGGED} events will continue to be
+     * delivered to the component where the drag originated until the
+     * mouse button is released (regardless of whether the mouse position
+     * is within the bounds of the component).
+     * <p>
+     * Due to platform-dependent Drag&amp;Drop implementations,
+     * {@code MOUSE_DRAGGED} events may not be delivered during a native
+     * Drag&amp;Drop operation.
+     * @param e the event to be processed
+     */
+    public void mouseDragged(MouseEvent evt)
+    {
+        if (evt == null)
+        {
+            return;
+        }
+
+        int x = evt.getX() - OFFSETX;
+        int y = evt.getY() - OFFSETY;
+        if (evt.getButton() == MouseEvent.BUTTON1 && mouseDown)
+        {   
+            if (x > SCREEN_WIDTH) // On tile selector
+            {
+                return;
+            }
+            else // On regular grid
+            {
+                x /= TILE_WIDTH;
+                y /= TILE_HEIGHT;
+
+                addPipe(x, y, editType.equals("SOURCE"),
+                        editType, EDIT_DIRECTIONS[editDirection]);
+                updateConnections();
+            }
+        }
+        else if (evt.getButton() == MouseEvent.BUTTON3)
+        {
+            x /= TILE_WIDTH;
+            y /= TILE_HEIGHT;
+            if (evt.isAltDown())
+            {
+                drainPipe(x, y);
+            }
+            else
+            {
+                removePipe(x, y);
+            }
+            updateConnections();
+        }
+    }
+
+    /**
+     * Invoked when the mouse cursor has been moved onto a component
+     * but no buttons have been pushed.
+     * @param e the event to be processed
+     */
+    public void mouseMoved(MouseEvent evt) {}
 
     /**
      * Invoked when the mouse enters a component
@@ -672,19 +815,54 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
                 drainAll();
                 repaint();
                 break;
+            case "Autoflow":
+                autoflow = !autoflow;
+                repaint();
+                break;
             case "Toggle Grid":
                 showGrid = !showGrid;
                 repaint();
                 break;
-            case "Pipe Selector":
-                pipeSelector = !pipeSelector;
-                repaint();
+            case "Black Grid (default)":
+                gridColour = Color.BLACK;
                 break;
-            case "Rotate Right":
+            case "White Background (default)":
+                guiColour = new Color(165, 165, 165);
+                backColour = new Color(200, 200, 200);
+                break;
+            case "Purple Grid":
+                gridColour = new Color(61, 15, 77);
+                break;
+            case "Purple Background":
+                guiColour = new Color(175, 11, 230);
+                backColour = new Color(136, 4, 201);
+                break;
+            case "Green Grid":
+                gridColour = new Color(40, 51, 31);
+                break;
+            case "Green Background":
+                guiColour = new Color(117, 148, 33);
+                backColour = new Color(91, 128, 32);
+                break;
+            case "Blue Grid":
+                gridColour = new Color(31, 37, 51);
+                break;
+            case "Blue Background":
+                guiColour = new Color(33, 64, 148);
+                backColour = new Color(32, 58, 128);
+                break;
+            case "Orange Grid":
+                gridColour = new Color(77, 44, 15);
+                break;
+            case "Orange Background":
+                guiColour = new Color(230, 117, 11);
+                backColour = new Color(201, 80, 4);
+                break;
+            case "Rotate Clockwise":
                 editDirection = ++editDirection % 4;
                 repaint();
                 break;
-            case "Rotate Left":
+            case "Rotate Anticlockwise":
                 --editDirection;
                 if (editDirection < 0)
                 {
@@ -720,8 +898,14 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         menuItem.setAccelerator(KeyStroke.getKeyStroke('f'));
         menuItem.addActionListener(this);
         menu.add(menuItem);
-        // Edit : Drain
+        // Model : Drain
         menuItem = new JMenuItem("Drain");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('d'));
+        menuItem.addActionListener(this);
+        menu.add(menuItem);
+        // Model : Autoflow
+        menuItem = new JMenuItem("Autoflow");
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('p'));
         menuItem.addActionListener(this);
         menu.add(menuItem);
 
@@ -734,6 +918,49 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         menuItem.setAccelerator(KeyStroke.getKeyStroke('g'));
         menuItem.addActionListener(this);
         menu.add(menuItem);
+        // Interface : Colour Scheme
+        subMenu = new JMenu("Colour Scheme");
+        menu.add(subMenu);
+        // Interface : Colour Scheme : Black Grid (default)
+        menuItem = new JMenuItem("Black Grid (default)");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : White Background
+        menuItem = new JMenuItem("White Background (default)");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Purple Grid
+        menuItem = new JMenuItem("Purple Grid");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Purple Background
+        menuItem = new JMenuItem("Purple Background");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Green Grid
+        menuItem = new JMenuItem("Green Grid"); // Is not a creative colour
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Green Background
+        menuItem = new JMenuItem("Green Background");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Blue Grid
+        menuItem = new JMenuItem("Blue Grid");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Blue Background
+        menuItem = new JMenuItem("Blue Background");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Orange Grid
+        menuItem = new JMenuItem("Orange Grid");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
+        // Interface : Colour Scheme : Orange Background
+        menuItem = new JMenuItem("Orange Background");
+        menuItem.addActionListener(this);
+        subMenu.add(menuItem);
 
         // The Edit menu
         menu = new JMenu("Edit");
@@ -743,18 +970,13 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         menuItem = new JMenuItem("Reset");
         menuItem.addActionListener(this);
         menu.add(menuItem);
-        // Edit : Pipe Selector
-        menuItem = new JMenuItem("Pipe Selector");
-        menuItem.setAccelerator(KeyStroke.getKeyStroke('s'));
-        menuItem.addActionListener(this);
-        menu.add(menuItem);
-        // Edit : Rotate Right
-        menuItem = new JMenuItem("Rotate Right");
+        // Edit : Rotate Clockwise
+        menuItem = new JMenuItem("Rotate Clockwise");
         menuItem.setAccelerator(KeyStroke.getKeyStroke('x'));
         menuItem.addActionListener(this);
         menu.add(menuItem);
-        // Edit : Rotate Left
-        menuItem = new JMenuItem("Rotate Left");
+        // Edit : Rotate Anticlockwise
+        menuItem = new JMenuItem("Rotate Anticlockwise");
         menuItem.setAccelerator(KeyStroke.getKeyStroke('z'));
         menuItem.addActionListener(this);
         menu.add(menuItem);
