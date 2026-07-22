@@ -3,21 +3,22 @@
  * Manages the graphics, flow model, pipe grid, etc.
  * 
  * @author Atreya Pandit
- * @version 22/07/2026
+ * @version 23/07/2026
  */
 
 // Graphics and GUI
 import javax.swing.*;
-
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 
-public class PipeNetwork extends JFrame implements ActionListener, MouseListener, MouseMotionListener
+public class PipeNetwork extends JFrame implements ActionListener,
+MouseListener, MouseMotionListener, ComponentListener
 {
     // FPS
-    final int FPS_MS = 1000 / 8; // ~24 FPS => 42 ms delay / frame
+    final int FPS = 8;
+    final int FPS_MS = 1000 / FPS;
 
     // Window offsets
     final int OFFSETX =
@@ -58,6 +59,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     Color gridColour = Color.BLACK; // Colour of grid tiles
     Color guiColour = new Color(165, 165, 165); // Colour of gui grid
     Color backColour = new Color(200, 200, 200); // Colour of backgrounds
+    boolean cursorShown = true;
     
 
     // MenuBar variables
@@ -76,7 +78,6 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         {new Pipe(false, "SINK", "UP"), new Pipe(true, "SOURCE", "UP")},
     };
     boolean autoflow = false;
-    Point2D[] changedTiles;
 
     // Timing
     int gameTimer = 0;
@@ -94,7 +95,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         this.setDefaultCloseOperation(EXIT_ON_CLOSE);
         createMenuBars(); // Make menu bars
         addMouseListener(this); // For mouse events
-        addMouseMotionListener(this);
+        addMouseMotionListener(this); // For mouse motion events
+        addComponentListener(this); // For component events
 
         this.pack();
         this.toFront();
@@ -124,7 +126,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             {
                 firstPaint = true;
             }
-            if (autoflow && ticks * FPS_MS % 1000 == 0)
+            if (autoflow && ticks % FPS == 0)
             {
                 updateConnections();
                 updateFlow();
@@ -248,6 +250,30 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             for (int x = 0; x < TILE_COLS; ++x)
             {
                 if (tileList[y][x] != null)
+                {
+                    ++count;
+                }
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Returns the amount of filled pipes in the pipe network, namely the
+     * number of pipes that have water in them, including sources.
+     */
+    public int countFilledPipes()
+    {
+        int count = 0;
+        for (int y = 0; y < TILE_ROWS; ++y)
+        {
+            for (int x = 0; x < TILE_COLS; ++x)
+            {
+                if (tileList[y][x] == null)
+                {
+                    // Do nothing
+                }
+                else if (tileList[y][x].getWater())
                 {
                     ++count;
                 }
@@ -449,7 +475,10 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
         // Pipe selector menu
         paintSelector(ctx);
-        paintOverlay(ctx);
+        if (cursorShown)
+        {
+            paintOverlay(ctx);
+        }
 
         // Draw image from buffer
         g.drawImage(offScreenImage, 0, 0, null);
@@ -530,6 +559,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             "Model Dimensions: " + TILE_COLS + "x" + TILE_ROWS,
             "Total Squares: " + TILE_ROWS * TILE_COLS,
             "Total Pipes: " + countPipes(),
+            "Filled Pipes: " + countFilledPipes(),
             "",
             "-- How to use --",
             "Left Click to place pipes",
@@ -537,8 +567,11 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             "Alt + Right Click to drain pipes",
             "X to rotate placement clockwise",
             "Z to rotate placement anticlockwise",
-            "F to step model by 1 frame",
             "G to toggle the model grid",
+            "H to toggle the pipe placement cursor",
+            "F to step model by 1 frame",
+            "D to drain the water from the model",
+            "P to enable automatic flowing",
             "",
             "-- Click icons to select pipes --",
         };
@@ -592,7 +625,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     public void paintOverlay(Graphics2D ctx)
     {
         Point mousePos = getMousePosition();
-        if (mousePos == null)
+        if (mousePos == null ||
+            mousePos.getX() < OFFSETX || mousePos.getY() < OFFSETY)
         {
             return;
         }
@@ -651,8 +685,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
      */
     public void mousePressed(MouseEvent evt)
     {
-        changedTiles = new Point2D[]{};
         mouseDown = true;
+        cursorShown = true;
     }
 
     /**
@@ -737,7 +771,8 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
 
         int x = evt.getX() - OFFSETX;
         int y = evt.getY() - OFFSETY;
-        if (evt.getButton() == MouseEvent.BUTTON1 && mouseDown)
+        if ((evt.getModifiersEx() & MouseEvent.BUTTON1_DOWN_MASK) != 0
+             && mouseDown)
         {   
             if (x > SCREEN_WIDTH) // On tile selector
             {
@@ -753,7 +788,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
                 updateConnections();
             }
         }
-        else if (evt.getButton() == MouseEvent.BUTTON3)
+        else if ((evt.getModifiersEx() & MouseEvent.BUTTON3_DOWN_MASK) != 0)
         {
             x /= TILE_WIDTH;
             y /= TILE_HEIGHT;
@@ -788,7 +823,39 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
      * 
      * @param evt - The event to be processed
      */
-    public void mouseExited(MouseEvent evt)  {}
+    public void mouseExited(MouseEvent evt) {}
+
+    /**
+     * Invoked when the component has been made invisible.
+     * @param e the event to be processed
+     */
+    public void componentHidden(ComponentEvent e) {}
+
+    /**
+     * Invoked when the component has been made visible.
+     * @param e the event to be processed
+     */
+    public void componentShown(ComponentEvent e)
+    {
+        firstPaint = true;
+        repaint();
+    }
+
+    /**
+     * Invoked when the component's position changes.
+     * @param e the event to be processed
+     */
+    public void componentMoved(ComponentEvent e) {}
+
+    /**
+     * Invoked when the component's size changes.
+     * @param e the event to be processed
+     */
+    public void componentResized(ComponentEvent e)
+    {
+        firstPaint = true;
+        repaint();
+    }
 
     /**
      * Invoked when an action occurs
@@ -857,6 +924,9 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
             case "Orange Background":
                 guiColour = new Color(230, 117, 11);
                 backColour = new Color(201, 80, 4);
+                break;
+            case "Toggle Cursor":
+                cursorShown = !cursorShown;
                 break;
             case "Rotate Clockwise":
                 editDirection = ++editDirection % 4;
@@ -961,6 +1031,11 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
         menuItem = new JMenuItem("Orange Background");
         menuItem.addActionListener(this);
         subMenu.add(menuItem);
+        // Interface : Toggle Cursor
+        menuItem = new JMenuItem("Toggle Cursor");
+        menuItem.addActionListener(this);
+        menuItem.setAccelerator(KeyStroke.getKeyStroke('h'));
+        menu.add(menuItem);
 
         // The Edit menu
         menu = new JMenu("Edit");
@@ -986,6 +1061,7 @@ public class PipeNetwork extends JFrame implements ActionListener, MouseListener
     {
         PipeNetwork program = new PipeNetwork();
         program.dispose();
+
         return;
     }
 }

@@ -62,7 +62,7 @@ Version 1.5.1 (20/07/2026)
 - Changed "(09/06/2026)" to "(09/07/2026)" in Version 1.5.0, because I
   am not capable of time travel... Yet...
 
-Version 2.0.0 (dd/07/2026)
+Version 2.0.0 (22/07/2026)
 - Implemented trialling feedback
     - Made the pipe selector always visible
     - Rewrote the information doohickey
@@ -71,3 +71,13 @@ Version 2.0.0 (dd/07/2026)
     - Created a keybind to drain all water (d)
     - Added colour scheme customisation
     - Added the ability to drag and edit pipes
+
+Version 2.0.1 (23/07/2026)
+- Bug fixes
+    - Fixed dragging support on Windows OS
+    - Added some code to prevent unstable FPS impacting autoflow rate
+    - Fixed pipe overlay rendering when off the negative edge of the screen
+    - Prevented menuBars potentially corrupting upon component modification
+- Added the ability to hide the cursor
+- Added some new keybinds to the how to use text
+- Added a count of filled pipes to the statistics text
